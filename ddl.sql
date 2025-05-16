@@ -55,7 +55,7 @@ CREATE TABLE disponibilidad_tutores (
 -- Tabla resenas
 CREATE TABLE resenas (
     id SERIAL PRIMARY KEY,
-    mentoria_id INT NOT NULL REFERENCES mentoria(id), 
+    mentoria_id INT NOT NULL UNIQUE REFERENCES mentoria(id), 
     calificacion INT CHECK (calificacion BETWEEN 1 AND 5),
     comentario TEXT NULL,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
