@@ -56,7 +56,7 @@ CREATE TABLE disponibilidad_tutores (
 CREATE TABLE resenas (
     id SERIAL PRIMARY KEY,
     mentoria_id INT NOT NULL REFERENCES mentoria(id), 
-    calificacion INT CHECK (calificacion BETWEEN 1 AND 6),
+    calificacion INT CHECK (calificacion BETWEEN 1 AND 5),
     comentario TEXT NULL,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -75,7 +75,7 @@ CREATE TABLE curso_tutores (
     id SERIAL PRIMARY KEY,
     curso_id INT NOT NULL REFERENCES cursos(id),
     tutor_id INT NOT NULL REFERENCES tutor(id),
-    precio DECIMAL(10,2) NOT NULL CHECK (precio > 0)
+    precio DECIMAL(10,2) NOT NULL CHECK (precio >= 0)
 );
 
 -- Tabla mentorias
@@ -97,7 +97,7 @@ CREATE TABLE estados (
 -- Tabla Cobro
 CREATE TABLE cobro (
     id SERIAL PRIMARY KEY,
-    monto_total DECIMAL(10,2) NOT NULL CHECK (monto_total > 0),
+    monto_total DECIMAL(10,2) NOT NULL CHECK (monto_total >= 0),
     mentorias_id INT NOT NULL REFERENCES mentorias(id),
     estado_id INT NOT NULL REFERENCES estados(id),
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
