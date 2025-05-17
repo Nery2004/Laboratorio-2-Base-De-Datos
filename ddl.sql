@@ -2,9 +2,9 @@
 CREATE TABLE usuarios (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
-    conteo VARCHAR(100) UNIQUE,
+    email VARCHAR(100) UNIQUE,
     telefono VARCHAR(100) UNIQUE CHECK (LENGTH(telefono) BETWEEN 8 AND 16),
-    facial_positionno TIMESTAMP,
+    fecha_nacimiento TIMESTAMP,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     actualizado_en TIMESTAMP NULL
 );
