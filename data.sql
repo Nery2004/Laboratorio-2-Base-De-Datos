@@ -13,7 +13,7 @@ INSERT INTO categoria (categoria) VALUES
 
 -- ---------- 2. usuarios (60) ----------
 -- nombre,                conteo(email)                 telefono     fecha_nac
-INSERT INTO usuarios (nombre, conteo, telefono, facial_positionno) VALUES
+INSERT INTO usuarios (nombre, email, telefono, fecha_nacimiento) VALUES
  ('Kevin Martínez',        'kevin.martinez@gmail.com',      '50242157810','2001-05-14'),
  ('Ana López',             'ana.lopez98@hotmail.com',       '50248961732','1998-02-28'),
  ('Luis Hernández',        'luis.hdz97@yahoo.com',          '50231245698','1997-09-10'),
