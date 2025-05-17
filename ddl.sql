@@ -52,15 +52,6 @@ CREATE TABLE disponibilidad_tutores (
     hora_fin TIME NOT NULL
 );
 
--- Tabla resenas
-CREATE TABLE resenas (
-    id SERIAL PRIMARY KEY,
-    mentoria_id INT NOT NULL UNIQUE REFERENCES mentoria(id), 
-    calificacion INT CHECK (calificacion BETWEEN 1 AND 5),
-    comentario TEXT NULL,
-    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
 -- Tabla chats
 CREATE TABLE chats (
     id SERIAL PRIMARY KEY,
@@ -86,6 +77,15 @@ CREATE TABLE mentorias (
     fecha DATE NOT NULL,
     hora_inicio TIME NOT NULL CHECK (hora_inicio < hora_fin),
     hora_fin TIME NOT NULL
+);
+
+-- Tabla resenas
+CREATE TABLE resenas (
+    id SERIAL PRIMARY KEY,
+    mentoria_id INT NOT NULL UNIQUE REFERENCES mentorias(id), 
+    calificacion INT CHECK (calificacion BETWEEN 1 AND 5),
+    comentario TEXT NULL,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Tabla estados
