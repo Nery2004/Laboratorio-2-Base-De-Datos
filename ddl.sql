@@ -112,3 +112,6 @@ CREATE TABLE usuario_chats (
     mensaje TEXT NOT NULL,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Correccion de nombres (no sabemos leer)
+ALTER TABLE usuarios RENAME COLUMN conteo TO email;
+ALTER TABLE usuarios RENAME COLUMN facial_positionno TO fecha_nacimiento;
