@@ -66,5 +66,34 @@ CALL gestionar_usuario(
     p_telefono := '53212312'--<<--- cambiar al que tu queres
 );
 -- 4 vistas
+--Vista con CASE: vista_mentorias_estado
+CREATE OR REPLACE VIEW vista_mentorias_estado AS
+SELECT
+    m.id AS mentoria_id,
+    u.nombre AS estudiante,
+    c.nombre_curso,
+    cb.monto_total,
+    CASE 
+        WHEN e.estado = 'Pagado' THEN 'Pago realizado ✅'
+        WHEN e.estado = 'Pendiente' THEN 'En espera de pago ⏳'
+        ELSE 'No se puede ❌'
+    END AS estado_pago
+FROM mentorias m
+JOIN estudiantes ON m.estudiante_id = estudiantes.id
+JOIN usuarios u ON estudiantes.usuario_id = u.id
+JOIN curso_tutores ct ON m.curso_tutores_id = ct.id
+JOIN cursos c ON ct.curso_id = c.id
+JOIN cobro cb ON cb.mentorias_id = m.id
+JOIN estados e ON cb.estado_id = e.id;
+
+--Vista con COALESCE: vista_usuarios_contacto
+CREATE OR REPLACE VIEW vista_usuarios_contacto AS
+SELECT
+    id AS usuario_id,
+    nombre,
+    email,
+    telefono,
+    COALESCE(email, telefono, 'Sin contacto') AS medio_contacto_preferido
+FROM usuarios;
 
 -- 2 triggers
