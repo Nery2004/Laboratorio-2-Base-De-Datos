@@ -1,5 +1,39 @@
 -- 3 funciones definidas por el usuario
+-- Retorna un escalar
+CREATE OR REPLACE FUNCTION promedio_tutor(tutor_id int)
+RETURNS numeric AS 
+$$
+DECLARE
+    resultado numeric;
+BEGIN
+    SELECT AVG(calificacion) INTO resultado FROM resenas r
+    JOIN mentorias m ON r.mentoria_id = m.id
+    JOIN curso_tutores ct ON m.curso_tutores_id = ct.id
+    WHERE ct.tutor_id = promedio_tutor.tutor_id;   
+    
+    RETURN resultado;
+END;
+$$ 
+LANGUAGE plpgsql;
 
+-- Retorna un conjunto de resultados
+CREATE OR REPLACE FUNCTION proximas_mentorias_estudiante(estudiante_id int)
+RETURNS TABLE (mentoria_id INT, estudiante VARCHAR, tutor VARCHAR, curso VARCHAR, fecha DATE, hora_inicio TIME, hora_fin TIME) AS
+$$
+BEGIN
+    RETURN QUERY
+        SELECT m.id, ue.nombre, ut.nombre, c.nombre_curso, m.fecha, m.hora_fin, m.hora_fin FROM mentorias m
+        JOIN curso_tutores ct ON m.curso_tutores_id = ct.id
+        JOIN estudiantes e ON proximas_mentorias_estudiante.estudiante_id = e.id
+        JOIN tutor t ON ct.tutor_id = t.id
+        JOIN cursos c ON ct.curso_id = c.id
+        JOIN usuarios ut ON t.usuario_id = ut.id
+        JOIN usuarios ue ON e.usuario_id = ue.id
+        WHERE m.estudiante_id = proximas_mentorias_estudiante.estudiante_id
+        AND m.fecha > CURRENT_DATE;
+END;
+$$
+LANGUAGE plpgsql;
 
 -- Mostrar tutores con mas 5 de puntaje en resenas
 WITH tutores_5_estrellas AS (
@@ -25,6 +59,76 @@ JOIN usuarios u ON t.usuario_id = u.id
 ORDER BY t5.cantidad_5_estrellas DESC;
 
 -- 2 procedimientos almacenados
+-- Uno para inserciones complejas:
+CREATE OR REPLACE PROCEDURE crear_mentoria(
+    IN mi_estudiante_id INT,
+    IN mi_tutor_id INT,
+    IN mi_curso_id INT,
+    IN mi_fecha DATE,
+    IN mi_hora_inicio TIME,
+    IN mi_hora_fin TIME
+)
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    m_curso_tutores_id INT;
+    m_precio NUMERIC;
+    m_mentoria_id INT;
+BEGIN
+    -- Aqui validamos si existe tanto el usuario, como el tutor para impartir la mentoria
+    IF NOT EXISTS (
+        SELECT 1 FROM estudiantes
+        WHERE id = mi_estudiante_id
+    ) THEN
+        RAISE EXCEPTION 'El estudiante de ID % no existe en la db', mi_estudiante_id;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM tutor
+        WHERE id = mi_tutor_id
+    ) THEN
+        RAISE EXCEPTION 'El tutor de ID % no existe en la db', mi_tutor_id;
+    END IF;
+
+    -- Miramos si el tutor da ese curso y de ese modo conseguimos el precio tambien
+    SELECT ct.id, ct.precio INTO m_curso_tutores_id, m_precio FROM curso_tutores ct
+    WHERE ct.curso_id = mi_curso_id
+    AND ct.tutor_id = mi_tutor_id; 
+
+    IF m_curso_tutores_id IS NULL THEN
+        RAISE EXCEPTION 'El tutor % no da el curso de %', mi_tutor_id, mi_curso_id;
+    END IF;
+
+    -- Miramos si no se sobrelapan los horarios tanto del tutor como del estudiante
+    IF EXISTS (
+        SELECT 1 FROM mentorias m
+        WHERE m.curso_tutores_id = m_curso_tutores_id
+        AND m.fecha = mi_fecha
+        AND (mi_hora_inicio, mi_hora_fin) OVERLAPS (m.hora_inicio, m.hora_fin)
+    ) THEN
+        RAISE EXCEPTION 'El tutor tiene ocupado ese horario';
+    END IF;
+    
+    IF EXISTS (
+        SELECT 1 FROM mentorias m
+        WHERE m.estudiante_id = mi_estudiante_id
+        AND m.fecha = mi_fecha
+        AND (mi_hora_inicio, mi_hora_fin) OVERLAPS (m.hora_inicio, m.hora_fin)
+    ) THEN
+        RAISE EXCEPTION 'El estudiante tiene ocupado ese horario';
+    END IF;
+
+    -- Se inserta la mentoria
+    INSERT INTO mentorias (estudiante_id, curso_tutores_id, fecha, hora_inicio, hora_fin) VALUES
+    (mi_estudiante_id, m_curso_tutores_id, mi_fecha, mi_hora_inicio, mi_hora_fin)
+    RETURNING id INTO m_mentoria_id;
+
+    -- Se crea de una vez un cobro sobre dicha mentoria y se marca como pendiente
+    INSERT INTO cobro (monto_total, mentorias_id, estado_id) VALUES
+    (m_precio, m_mentoria_id, 1);
+END;
+$$
 
 --Uno para actualización:
 CREATE OR REPLACE PROCEDURE gestionar_usuario(
@@ -66,6 +170,27 @@ CALL gestionar_usuario(
     p_telefono := '53212312'--<<--- cambiar al que tu queres
 );
 -- 4 vistas
+-- Una vista simple: 
+CREATE OR REPLACE VIEW mentorias_resumen AS
+SELECT m.id, ue.nombre AS estudiante, ut.nombre AS tutor, c.nombre_curso AS curso, m.fecha, m.hora_inicio, m.hora_fin, 
+co.monto_total AS precio, es.estado AS estado_de_pago FROM mentorias m
+JOIN estudiantes e ON m.estudiante_id = e.id
+JOIN usuarios ue ON e.usuario_id = ue.id
+JOIN curso_tutores ct ON m.curso_tutores_id = ct.id
+JOIN tutor t ON ct.tutor_id = t.id
+JOIN usuarios ut ON t.usuario_id = ut.id
+JOIN cursos c ON ct.curso_id = c.id
+JOIN cobro co ON m.id = co.mentorias_id
+JOIN estados es ON co.estado_id = es.id;
+
+-- Una vista con JOIN y GROUP BY:
+CREATE OR REPLACE VIEW mentorias_por_curso AS 
+SELECT c.id, c.nombre_curso AS curso, COUNT(m.id) AS mentorias_totales FROM mentorias m
+JOIN curso_tutores ct ON m.curso_tutores_id = ct.id
+JOIN cursos c ON ct.curso_id = c.id
+GROUP BY c.id, c.nombre_curso
+ORDER BY mentorias_totales DESC;
+
 --Vista con CASE: vista_mentorias_estado
 CREATE OR REPLACE VIEW vista_mentorias_estado AS
 SELECT
@@ -74,9 +199,9 @@ SELECT
     c.nombre_curso,
     cb.monto_total,
     CASE 
-        WHEN e.estado = 'Pagado' THEN 'Pago realizado ✅'
-        WHEN e.estado = 'Pendiente' THEN 'En espera de pago ⏳'
-        ELSE 'No se puede ❌'
+        WHEN e.estado = 'Pagado' THEN 'Pago realizado'
+        WHEN e.estado = 'Pendiente' THEN 'En espera de pago'
+        ELSE 'No se puede'
     END AS estado_pago
 FROM mentorias m
 JOIN estudiantes ON m.estudiante_id = estudiantes.id
@@ -97,3 +222,34 @@ SELECT
 FROM usuarios;
 
 -- 2 triggers
+-- De tipo BEFORE: 
+CREATE OR REPLACE FUNCTION validar_resena()
+RETURNS TRIGGER
+LANGUAGE plpgsql AS
+$$
+DECLARE
+    estudiante_resenando_id INT;
+    fecha_mentoria DATE;
+    hora_fin_mentoria TIME;
+BEGIN
+    SELECT estudiante_id, fecha, hora_fin INTO estudiante_resenando_id, fecha_mentoria, hora_fin_mentoria FROM mentorias
+    WHERE id = NEW.mentoria_id;
+
+    -- Vemos que la mentoria que se esta reseñando exista
+    IF estudiante_resenando_id IS NULL THEN 
+        RAISE EXCEPTION 'La mentoria de ID % no existe', NEW.mentoria_id;
+    END IF;
+
+    -- Hay que asegurar que la fecha y hora ya hayan pasado, porque no tendria sentido reseñar algo que no ha sucedido (aunque hay gente que erroneamente lo hace)
+    IF (fecha_mentoria > CURRENT_DATE)
+    OR (fecha_mentoria = CURRENT_DATE AND hora_fin_mentoria > CURRENT_TIME) THEN
+        RAISE EXCEPTION 'No se puede reseñar una mentoria que aun no se ha dado';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER resena_insert_before
+BEFORE INSERT ON resenas
+FOR EACH ROW EXECUTE FUNCTION validar_resena();
