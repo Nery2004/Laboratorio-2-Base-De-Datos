@@ -35,7 +35,30 @@ END;
 $$
 LANGUAGE plpgsql;
 
--- Mostrar tutores con mas 5 de puntaje en resenas
+-- Una que utilice múltiples parámetros o logica condicional
+CREATE OR REPLACE FUNCTION mostrar_resenas_tutor(el_tutor_id int, calificacion_minima int)
+RETURNS TABLE (tutor_id INT, tutor VARCHAR, mentoria_id INT, curso VARCHAR, estudiante_enseñado VARCHAR, calificacion INT, comentario TEXT) AS
+$$
+BEGIN
+    IF calificacion_minima < 1 OR calificacion_minima > 5 THEN
+        RAISE EXCEPTION 'La calificacion minima a mostrar debe estar entre 1 y 5';
+    END IF;
+
+    RETURN QUERY
+    SELECT t.id, ut.nombre, m.id, c.nombre_curso , ue.nombre, r.calificacion, r.comentario FROM mentorias m
+    JOIN resenas r ON m.id = r.mentoria_id
+    JOIN curso_tutores ct ON m.curso_tutores_id = ct.id
+    JOIN cursos c ON ct.curso_id = c.id
+    JOIN tutor t ON el_tutor_id = t.id
+    JOIN usuarios ut ON t.usuario_id = ut.id
+    JOIN estudiantes e ON m.estudiante_id = e.id
+    JOIN usuarios ue ON e.usuario_id = ue.id
+    WHERE r.calificacion >= calificacion_minima;
+END;
+$$
+LANGUAGE plpgsql;
+
+-- EXTRA: Mostrar tutores con mas 5 de puntaje en resenas
 CREATE OR REPLACE FUNCTION obtener_tutores_5_estrellas()
 RETURNS TABLE (
     tutor_id INTEGER,
