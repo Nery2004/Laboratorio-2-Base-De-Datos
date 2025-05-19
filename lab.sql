@@ -258,3 +258,19 @@ BEFORE INSERT ON resenas
 FOR EACH ROW EXECUTE FUNCTION validar_resena();
 
 -- De tipo AFTER: 
+CREATE OR REPLACE FUNCTION actualizar_fecha_mentoria()
+RETURNS TRIGGER AS $$
+BEGIN
+	-- Actualiza la mentoria correspondiente a la nueva reseña
+    UPDATE mentorias
+    SET actualizado_en = CURRENT_TIMESTAMP
+    WHERE id = NEW.mentoria_id;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_actualizar_mentoria
+AFTER INSERT ON resenas -- Se activa DESPUÉS (AFTER) de insertar una fila en la tabla 'resenas'.
+FOR EACH ROW
+EXECUTE FUNCTION actualizar_fecha_mentoria();
