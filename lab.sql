@@ -154,7 +154,7 @@ BEGIN
     INSERT INTO cobro (monto_total, mentorias_id, estado_id) VALUES
     (m_precio, m_mentoria_id, 1);
 END;
-$$
+$$;
 
 --Uno para actualización:
 CREATE OR REPLACE PROCEDURE gestionar_usuario(
